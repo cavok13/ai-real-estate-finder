@@ -29,3 +29,8 @@ def login(request: dict):
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/test")
+def test():
+    return {"result": "API is working"}
