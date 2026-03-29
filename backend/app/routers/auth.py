@@ -55,22 +55,13 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login")
 def login(login_data: LoginRequest, db: Session = Depends(get_db)):
-    # Demo user bypass - no database needed
+    # Demo user - return hardcoded token, skip database
     if login_data.email == "test@demo.com" and login_data.password == "demo123":
-        access_token = create_access_token(
-            data={"sub": "demo"},
-            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        )
-        return {"access_token": access_token, "token_type": "bearer"}
+        return {"access_token": "demo-access-token-12345", "token_type": "bearer"}
     
-    user = db.query(User).filter(User.email == login_data.email).first()
-    if not user or not verify_password(login_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
+    return {"error": "Invalid credentials"}
     
     access_token = create_access_token(
         data={"sub": str(user.id)},
