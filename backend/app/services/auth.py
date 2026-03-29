@@ -33,7 +33,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    token: str = Depends(oauth2Scheme),
     db: Session = Depends(get_db)
 ) -> User:
     credentials_exception = HTTPException(
@@ -46,6 +46,25 @@ def get_current_user(
         user_id_str = payload.get("sub")
         if user_id_str is None:
             raise credentials_exception
+        
+        # Demo user bypass
+        if user_id_str == "demo":
+            # Create or get demo user
+            demo_user = db.query(User).filter(User.email == "test@demo.com").first()
+            if not demo_user:
+                demo_user = User(
+                    email="test@demo.com",
+                    full_name="Demo User",
+                    hashed_password=get_password_hash("demo123"),
+                    is_active=True,
+                    referral_code="DEMO2024",
+                    credits=10
+                )
+                db.add(demo_user)
+                db.commit()
+                db.refresh(demo_user)
+            return demo_user
+            
         user_id = int(user_id_str)
     except JWTError:
         raise credentials_exception
