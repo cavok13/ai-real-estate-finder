@@ -34,3 +34,8 @@ def health_check():
 @app.get("/test")
 def test():
     return {"result": "API is working"}
+
+
+@app.get("/api/v1/auth/me")
+def get_me():
+    return {"id": 1, "email": "test@demo.com", "full_name": "Demo User", "credits": 100, "plan": "free"}
