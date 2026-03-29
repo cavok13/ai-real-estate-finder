@@ -40,7 +40,7 @@ def root():
     }
 
 
-@app.post("/test-login")
+@app.get("/test-login")
 def test_login():
     return {"access_token": "demo-token", "token_type": "bearer"}
 
