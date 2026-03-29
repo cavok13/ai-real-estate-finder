@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const API_URL = 'https://ai-real-estate-finder.onrender.com/api/v1';
 
 console.log('API URL:', API_URL);
 
