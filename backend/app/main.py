@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.routers import auth, properties, analysis, payments, quick_analyze, realestate_api, markets
+from app.database import SessionLocal
+from app.models.models import User
+from app.services.auth import get_password_hash
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -40,3 +43,23 @@ def root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+
+@app.on_event("startup")
+def create_demo_user():
+    db = SessionLocal()
+    try:
+        existing = db.query(User).filter(User.email == "test@demo.com").first()
+        if not existing:
+            demo_user = User(
+                email="test@demo.com",
+                full_name="Demo User",
+                hashed_password=get_password_hash("demo123"),
+                is_active=True,
+                referral_code="DEMO2024"
+            )
+            db.add(demo_user)
+            db.commit()
+            print("Demo user created: test@demo.com / demo123")
+    finally:
+        db.close()
