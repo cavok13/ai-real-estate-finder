@@ -57,6 +57,21 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login(login_data: LoginRequest, db: Session = Depends(get_db)):
+    # Auto-create demo user if not exists
+    if login_data.email == "test@demo.com" and login_data.password == "demo123":
+        existing = db.query(User).filter(User.email == "test@demo.com").first()
+        if not existing:
+            demo_user = User(
+                email="test@demo.com",
+                full_name="Demo User",
+                hashed_password=get_password_hash("demo123"),
+                is_active=True,
+                referral_code="DEMO2024",
+                credits=10
+            )
+            db.add(demo_user)
+            db.commit()
+    
     user = db.query(User).filter(User.email == login_data.email).first()
     if not user or not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(
