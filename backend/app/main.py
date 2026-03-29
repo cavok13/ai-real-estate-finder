@@ -9,15 +9,10 @@ app = FastAPI(
     description="AI-powered real estate deal finder that analyzes properties and scores investment opportunities"
 )
 
-# CORS middleware
+# CORS middleware - allow all origins for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3013",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3013",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
