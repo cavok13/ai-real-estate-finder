@@ -45,6 +45,15 @@ def test_login():
     return {"access_token": "demo-token", "token_type": "bearer"}
 
 
+@app.post("/api/v1/auth/demo-login")
+def demo_login(request: dict):
+    email = request.get("email", "")
+    password = request.get("password", "")
+    if email == "test@demo.com" and password == "demo123":
+        return {"access_token": "demo-access-token", "token_type": "bearer"}
+    return {"error": "Invalid credentials"}, 401
+
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
