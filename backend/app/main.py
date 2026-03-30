@@ -410,11 +410,29 @@ async def test_hf():
     if not HF_TOKEN:
         return {"error": "HF token not configured"}
     
-    return {
-        "hf_available": HF_AVAILABLE,
-        "inference_client_available": InferenceClient is not None,
-        "token_prefix": HF_TOKEN[:10] + "..." if HF_TOKEN else None
-    }
+    if not HF_AVAILABLE or InferenceClient is None:
+        return {"error": "HF package not installed"}
+    
+    try:
+        client = InferenceClient(
+            provider="auto",
+            api_key=HF_TOKEN
+        )
+        response = client.text_generation(
+            "Say 'Hello' in 3 words",
+            model="google/flan-t5-base",
+            max_new_tokens=10
+        )
+        return {"success": True, "response": response}
+    except Exception as e:
+        import traceback
+        err_str = str(e)
+        if "StopIteration" in err_str:
+            return {
+                "error": "Inference Providers not set up. Go to HF Settings → Inference Providers and add billing (free tier requires billing info).",
+                "hint": "Token may need 'Inference Providers' permission. Create new token at Settings → Tokens."
+            }
+        return {"error": err_str, "trace": traceback.format_exc()}
 
 
 @app.get("/api/v1/payments/plans")
