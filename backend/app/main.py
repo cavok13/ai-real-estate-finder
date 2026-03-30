@@ -408,7 +408,7 @@ def test():
 async def test_hf():
     """Test Hugging Face API directly"""
     if not HF_TOKEN:
-        return {"error": "HF token not configured"}
+        return {"error": "HF token not configured", "setup_needed": True}
     
     if not HF_AVAILABLE or InferenceClient is None:
         return {"error": "HF package not installed"}
@@ -424,15 +424,15 @@ async def test_hf():
             max_new_tokens=10
         )
         return {"success": True, "response": response}
+    except StopIteration:
+        return {
+            "error": "Inference Providers not available",
+            "setup_needed": True,
+            "hint": "Go to https://huggingface.co/settings/inference-providers and add billing info (free tier requires billing to be added)"
+        }
     except Exception as e:
         import traceback
-        err_str = str(e)
-        if "StopIteration" in err_str:
-            return {
-                "error": "Inference Providers not set up. Go to HF Settings → Inference Providers and add billing (free tier requires billing info).",
-                "hint": "Token may need 'Inference Providers' permission. Create new token at Settings → Tokens."
-            }
-        return {"error": err_str, "trace": traceback.format_exc()}
+        return {"error": str(e), "trace": traceback.format_exc()}
 
 
 @app.get("/api/v1/payments/plans")
