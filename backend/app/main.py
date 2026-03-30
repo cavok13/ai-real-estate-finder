@@ -46,10 +46,10 @@ Keep it under 100 words."""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://api-inference.huggingface.co/models/google/flan-t5-base",
+                "https://router.huggingface.co/google/flan-t5-base",
                 headers={"Authorization": f"Bearer {HF_TOKEN}"},
                 json={"inputs": prompt},
-                timeout=30.0
+                timeout=60.0
             )
             if response.status_code == 200:
                 result = response.json()
