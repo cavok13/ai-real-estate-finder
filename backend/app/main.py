@@ -363,7 +363,11 @@ def health_check():
 
 @app.get("/test")
 def test():
-    return {"result": "API is working"}
+    return {
+        "result": "API is working",
+        "hf_enabled": USE_HF,
+        "hf_token_prefix": HF_TOKEN[:10] + "..." if HF_TOKEN else None
+    }
 
 
 @app.get("/api/v1/payments/plans")
