@@ -6,11 +6,13 @@ from fastapi.responses import JSONResponse
 import httpx
 from typing import Optional
 
+HF_AVAILABLE = False
 try:
     from huggingface_hub import InferenceClient
     HF_AVAILABLE = True
-except ImportError:
-    HF_AVAILABLE = False
+except Exception as e:
+    print(f"HF import error: {e}")
+    InferenceClient = None
 
 try:
     import stripe
@@ -51,33 +53,38 @@ Provide a brief investment analysis with:
 Keep it under 80 words."""
 
     try:
-        if HF_AVAILABLE:
-            client = InferenceClient(
-                provider="auto",
-                api_key=HF_TOKEN
-            )
-            response = client.text_generation(
-                prompt,
-                model="google/flan-t5-base",
-                max_new_tokens=150,
-                temperature=0.7,
-                return_full_text=False
-            )
-            if response:
-                return {"ai_analysis": response, "powered_by": "huggingface"}
-        else:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "https://api-inference.huggingface.co/models/google/flan-t5-base",
-                    headers={"Authorization": f"Bearer {HF_TOKEN}"},
-                    json={"inputs": prompt, "parameters": {"max_new_tokens": 150}},
-                    timeout=60.0
+        if HF_AVAILABLE and InferenceClient:
+            try:
+                client = InferenceClient(
+                    provider="auto",
+                    api_key=HF_TOKEN
                 )
-                if response.status_code == 200:
-                    result = response.json()
-                    if isinstance(result, list) and len(result) > 0:
-                        text = result[0].get("generated_text", "")
-                        return {"ai_analysis": text, "powered_by": "huggingface"}
+                response = client.text_generation(
+                    prompt,
+                    model="google/flan-t5-base",
+                    max_new_tokens=150,
+                    temperature=0.7,
+                    return_full_text=False
+                )
+                if response:
+                    return {"ai_analysis": response, "powered_by": "huggingface"}
+            except Exception as e:
+                print(f"InferenceClient error: {e}")
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api-inference.huggingface.co/models/google/flan-t5-base",
+                headers={"Authorization": f"Bearer {HF_TOKEN}"},
+                json={"inputs": prompt, "parameters": {"max_new_tokens": 150}},
+                timeout=60.0
+            )
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    text = result[0].get("generated_text", "")
+                    return {"ai_analysis": text, "powered_by": "huggingface"}
+            else:
+                print(f"HF API status: {response.status_code}, body: {response.text}")
     except Exception as e:
         print(f"HF API error: {e}")
         import traceback
