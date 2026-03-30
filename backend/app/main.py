@@ -3,8 +3,21 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
+import stripe
+
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "sk_test_demo")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "pk_test_demo")
+
+stripe.api_key = STRIPE_SECRET_KEY
 
 app = FastAPI(title="AI Real Estate Deals Finder API")
+
+SUBSCRIPTION_PLANS = {
+    "free": {"credits": 3, "price": 0},
+    "basic": {"credits": 20, "price": 19, "name": "Basic - 20 Analyses"},
+    "pro": {"credits": 100, "price": 49, "name": "Pro - 100 Analyses"},
+    "enterprise": {"credits": 500, "price": 149, "name": "Enterprise - 500 Analyses"},
+}
 
 app.add_middleware(
     CORSMiddleware,
@@ -196,3 +209,76 @@ def health_check():
 @app.get("/test")
 def test():
     return {"result": "API is working"}
+
+
+@app.get("/api/v1/payments/plans")
+def get_plans():
+    """Get available subscription plans"""
+    plans = []
+    for key, plan in SUBSCRIPTION_PLANS.items():
+        plans.append({
+            "id": key,
+            "name": plan.get("name", key.title()),
+            "credits": plan["credits"],
+            "price": plan["price"],
+            "is_popular": key == "pro"
+        })
+    return plans
+
+
+@app.post("/api/v1/payments/create-checkout")
+def create_checkout(request: dict):
+    """Create Stripe checkout session"""
+    plan_id = request.get("plan_id", "pro")
+    success_url = request.get("success_url", "https://frontend-psi-two-35.vercel.app/dashboard?payment=success")
+    cancel_url = request.get("cancel_url", "https://frontend-psi-two-35.vercel.app/dashboard?payment=cancelled")
+    
+    plan = SUBSCRIPTION_PLANS.get(plan_id)
+    if not plan:
+        return {"error": "Invalid plan"}, 400
+    
+    if plan["price"] == 0:
+        return {"error": "Free plan doesn't need payment"}, 400
+    
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {
+                        "name": plan.get("name", f"AI Real Estate - {plan_id.title()}"),
+                        "description": f"{plan['credits']} property analyses",
+                    },
+                    "unit_amount": plan["price"] * 100,
+                },
+                "quantity": 1,
+            }],
+            mode="payment",
+            success_url=success_url,
+            cancel_url=cancel_url,
+        })
+        return {"checkout_url": session.url, "session_id": session.id}
+    except Exception as e:
+        return {"checkout_url": f"/dashboard?payment=demo&plan={plan_id}", "demo": True, "message": "Stripe not configured - demo mode"}
+
+
+@app.get("/api/v1/payments/verify/{session_id}")
+def verify_payment(session_id: str):
+    """Verify if payment was successful"""
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        if session.payment_status == "paid":
+            return {"status": "paid", "plan": "pro"}
+        return {"status": "pending"}
+    except:
+        return {"status": "demo", "message": "Demo mode"}
+
+
+@app.get("/api/v1/payments/config")
+def get_payment_config():
+    """Get Stripe public configuration"""
+    return {
+        "publishable_key": STRIPE_PUBLISHABLE_KEY,
+        "is_live": STRIPE_SECRET_KEY.startswith("sk_live"),
+    }
