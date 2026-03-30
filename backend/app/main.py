@@ -424,15 +424,16 @@ async def test_hf():
             max_new_tokens=10
         )
         return {"success": True, "response": response}
-    except StopIteration:
-        return {
-            "error": "Inference Providers not available",
-            "setup_needed": True,
-            "hint": "Go to https://huggingface.co/settings/inference-providers and add billing info (free tier requires billing to be added)"
-        }
-    except Exception as e:
+    except BaseException as e:
         import traceback
-        return {"error": str(e), "trace": traceback.format_exc()}
+        err_type = type(e).__name__
+        if err_type == "StopIteration":
+            return {
+                "error": "Inference Providers not available",
+                "setup_needed": True,
+                "hint": "Go to https://huggingface.co/settings/inference-providers and add billing info (free tier requires billing to be added)"
+            }
+        return {"error": f"{err_type}: {str(e)}", "trace": traceback.format_exc()}
 
 
 @app.get("/api/v1/payments/plans")
