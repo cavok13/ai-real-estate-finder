@@ -1,5 +1,6 @@
 'use client';
 
+// AI Real Estate Deals - Property Analysis Platform
 import { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import PropertyCard from '@/components/PropertyCard';
