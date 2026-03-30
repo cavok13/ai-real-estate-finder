@@ -1,13 +1,1 @@
-# AI Real Estate Deals Finder - Backend
-
-# Python version
-python-3.11
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the server
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
-
-# Or for production with gunicorn
-# gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT
+web: uvicorn app.main:app --host 0.0.0.0 --port $PORT
