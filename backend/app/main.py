@@ -16,14 +16,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
 app = FastAPI(title="AI Real Estate Deals API", version="2.0.0")
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-allow_origins = [FRONTEND_URL, "http://localhost:3000"]
-if FRONTEND_URL != "http://localhost:3000":
-    allow_origins.append("*")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
