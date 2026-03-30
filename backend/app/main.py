@@ -32,7 +32,7 @@ USE_HF = bool(HF_TOKEN and HF_AVAILABLE)
 
 async def get_ai_analysis(property_data: dict, user_budget: dict) -> dict:
     """Get AI-powered property analysis using Hugging Face Inference Providers"""
-    if not USE_HF or not HF_TOKEN:
+    if not HF_TOKEN:
         return None
     
     prompt = f"""Analyze this property for real estate investment in UAE:
@@ -51,21 +51,33 @@ Provide a brief investment analysis with:
 Keep it under 80 words."""
 
     try:
-        client = InferenceClient(
-            provider="auto",
-            api_key=HF_TOKEN
-        )
-        
-        response = client.text_generation(
-            prompt,
-            model="google/flan-t5-base",
-            max_new_tokens=150,
-            temperature=0.7,
-            return_full_text=False
-        )
-        
-        if response:
-            return {"ai_analysis": response, "powered_by": "huggingface"}
+        if HF_AVAILABLE:
+            client = InferenceClient(
+                provider="auto",
+                api_key=HF_TOKEN
+            )
+            response = client.text_generation(
+                prompt,
+                model="google/flan-t5-base",
+                max_new_tokens=150,
+                temperature=0.7,
+                return_full_text=False
+            )
+            if response:
+                return {"ai_analysis": response, "powered_by": "huggingface"}
+        else:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api-inference.huggingface.co/models/google/flan-t5-base",
+                    headers={"Authorization": f"Bearer {HF_TOKEN}"},
+                    json={"inputs": prompt, "parameters": {"max_new_tokens": 150}},
+                    timeout=60.0
+                )
+                if response.status_code == 200:
+                    result = response.json()
+                    if isinstance(result, list) and len(result) > 0:
+                        text = result[0].get("generated_text", "")
+                        return {"ai_analysis": text, "powered_by": "huggingface"}
     except Exception as e:
         print(f"HF API error: {e}")
         import traceback
