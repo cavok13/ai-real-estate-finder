@@ -290,11 +290,12 @@ def get_property(property_id: int):
 
 
 @app.get("/api/v1/analyze")
-def analyze_property(
+async def analyze_property(
     budget_min: float = None,
     budget_max: float = None,
     preferred_city: str = None,
-    bedrooms_min: int = None
+    bedrooms_min: int = None,
+    property_id: int = None
 ):
     analysis_id = len(DEMO_ANALYSES) + 1
     
@@ -306,6 +307,15 @@ def analyze_property(
     if bedrooms_min:
         suitable = [p for p in suitable if p.get("bedrooms", 0) >= bedrooms_min]
     
+    ai_insight = None
+    if property_id:
+        prop = next((p for p in DEMO_PROPERTIES if p["id"] == property_id), None)
+        if prop and USE_HF:
+            user_budget = {"budget_min": budget_min or 0, "budget_max": budget_max or 99999999}
+            ai_result = await get_ai_analysis(prop, user_budget)
+            if ai_result:
+                ai_insight = ai_result.get("ai_analysis")
+    
     analysis = {
         "id": analysis_id,
         "budget_min": budget_min,
@@ -315,6 +325,8 @@ def analyze_property(
         "matches": len(suitable),
         "properties": suitable[:5],
         "insights": f"Found {len(suitable)} properties matching your criteria. Average price: {sum(p['price'] for p in suitable) / max(len(suitable), 1):,.0f} AED.",
+        "ai_insight": ai_insight,
+        "ai_enabled": USE_HF,
         "created_at": "2026-03-30T12:00:00Z"
     }
     DEMO_ANALYSES.append(analysis)
