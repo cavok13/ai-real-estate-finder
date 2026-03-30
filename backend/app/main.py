@@ -1,14 +1,23 @@
 import os
+import traceback
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
-import stripe
 
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "sk_test_demo")
-STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "pk_test_demo")
-
-stripe.api_key = STRIPE_SECRET_KEY
+try:
+    import stripe
+    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+    if STRIPE_SECRET_KEY:
+        stripe.api_key = STRIPE_SECRET_KEY
+    else:
+        stripe = None
+except Exception as e:
+    print(f"Stripe import error: {e}")
+    stripe = None
+    STRIPE_SECRET_KEY = ""
+    STRIPE_PUBLISHABLE_KEY = ""
 
 app = FastAPI(title="AI Real Estate Deals Finder API")
 
@@ -240,6 +249,9 @@ def create_checkout(request: dict):
     if plan["price"] == 0:
         return {"error": "Free plan doesn't need payment"}, 400
     
+    if stripe is None or not STRIPE_SECRET_KEY:
+        return {"checkout_url": f"/dashboard?payment=demo&plan={plan_id}", "demo": True, "message": "Stripe not configured - demo mode"}
+    
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
@@ -257,7 +269,7 @@ def create_checkout(request: dict):
             mode="payment",
             success_url=success_url,
             cancel_url=cancel_url,
-        })
+        )
         return {"checkout_url": session.url, "session_id": session.id}
     except Exception as e:
         return {"checkout_url": f"/dashboard?payment=demo&plan={plan_id}", "demo": True, "message": "Stripe not configured - demo mode"}
@@ -266,6 +278,9 @@ def create_checkout(request: dict):
 @app.get("/api/v1/payments/verify/{session_id}")
 def verify_payment(session_id: str):
     """Verify if payment was successful"""
+    if stripe is None or not STRIPE_SECRET_KEY:
+        return {"status": "demo", "message": "Demo mode"}
+    
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         if session.payment_status == "paid":
@@ -280,5 +295,5 @@ def get_payment_config():
     """Get Stripe public configuration"""
     return {
         "publishable_key": STRIPE_PUBLISHABLE_KEY,
-        "is_live": STRIPE_SECRET_KEY.startswith("sk_live"),
+        "is_live": STRIPE_SECRET_KEY.startswith("sk_live") if STRIPE_SECRET_KEY else False,
     }
