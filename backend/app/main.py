@@ -61,7 +61,7 @@ Keep it under 80 words."""
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "microsoft/Phi-3-mini-4k-instruct",
+                    "model": "meta-llama/Llama-3.2-1B-Instruct",
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": 150
                 },
@@ -408,7 +408,7 @@ async def test_hf():
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "microsoft/Phi-3-mini-4k-instruct",
+                    "model": "meta-llama/Llama-3.2-1B-Instruct",
                     "messages": [{"role": "user", "content": "Say 'Hello' in 3 words"}],
                     "max_tokens": 20
                 },
