@@ -380,8 +380,31 @@ def test():
     return {
         "result": "API is working",
         "hf_enabled": USE_HF,
+        "hf_available": HF_AVAILABLE,
         "hf_token_prefix": HF_TOKEN[:10] + "..." if HF_TOKEN else None
     }
+
+
+@app.get("/test-hf")
+async def test_hf():
+    """Test Hugging Face API directly"""
+    if not USE_HF or not HF_TOKEN:
+        return {"error": "HF not configured"}
+    
+    try:
+        client = InferenceClient(
+            provider="auto",
+            api_key=HF_TOKEN
+        )
+        response = client.text_generation(
+            "Say 'Hello from HF!' in 3 words",
+            model="google/flan-t5-base",
+            max_new_tokens=10
+        )
+        return {"success": True, "response": response}
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc()}
 
 
 @app.get("/api/v1/payments/plans")
