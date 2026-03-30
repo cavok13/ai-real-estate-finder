@@ -19,6 +19,45 @@ except Exception as e:
     STRIPE_SECRET_KEY = ""
     STRIPE_PUBLISHABLE_KEY = ""
 
+HF_TOKEN = os.getenv("HF_TOKEN", "")
+USE_HF = bool(HF_TOKEN)
+
+
+async def get_ai_analysis(property_data: dict, user_budget: dict) -> dict:
+    """Get AI-powered property analysis using Hugging Face"""
+    if not USE_HF:
+        return None
+    
+    prompt = f"""Analyze this property for real estate investment:
+Property: {property_data['title']}
+Price: {property_data['price']:,} {property_data['currency']}
+Area: {property_data['area']} sqm
+Location: {property_data['location']}, {property_data['city']}
+Bedrooms: {property_data['bedrooms']}, Bathrooms: {property_data['bathrooms']}
+User Budget: {user_budget.get('budget_min', 0):,} - {user_budget.get('budget_max', 99999999):,}
+
+Provide a brief investment analysis with:
+1. Deal Score (0-100)
+2. Price vs Market (percentage)
+3. Key highlights
+4. Investment recommendation (Buy/Hold/Avoid)
+Keep it under 100 words."""
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api-inference.huggingface.co/models/google/flan-t5-base",
+                headers={"Authorization": f"Bearer {HF_TOKEN}"},
+                json={"inputs": prompt},
+                timeout=30.0
+            )
+            if response.status_code == 200:
+                result = response.json()
+                return {"ai_analysis": result, "powered_by": "huggingface"}
+    except Exception as e:
+        print(f"HF API error: {e}")
+    return None
+
 app = FastAPI(title="AI Real Estate Deals Finder API")
 
 SUBSCRIPTION_PLANS = {
