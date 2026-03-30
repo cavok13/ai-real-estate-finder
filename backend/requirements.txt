@@ -11,3 +11,4 @@ python-multipart==0.0.6
 stripe==7.10.0
 httpx==0.26.0
 email-validator==2.1.0
+huggingface_hub>=0.20.0

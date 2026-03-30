@@ -4,6 +4,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
+from typing import Optional
+
+try:
+    from huggingface_hub import InferenceClient
+    HF_AVAILABLE = True
+except ImportError:
+    HF_AVAILABLE = False
 
 try:
     import stripe
@@ -20,15 +27,15 @@ except Exception as e:
     STRIPE_PUBLISHABLE_KEY = ""
 
 HF_TOKEN = os.getenv("HF_TOKEN", "")
-USE_HF = bool(HF_TOKEN)
+USE_HF = bool(HF_TOKEN and HF_AVAILABLE)
 
 
 async def get_ai_analysis(property_data: dict, user_budget: dict) -> dict:
-    """Get AI-powered property analysis using Hugging Face"""
-    if not USE_HF:
+    """Get AI-powered property analysis using Hugging Face Inference Providers"""
+    if not USE_HF or not HF_TOKEN:
         return None
     
-    prompt = f"""Analyze this property for real estate investment:
+    prompt = f"""Analyze this property for real estate investment in UAE:
 Property: {property_data['title']}
 Price: {property_data['price']:,} {property_data['currency']}
 Area: {property_data['area']} sqm
@@ -38,24 +45,31 @@ User Budget: {user_budget.get('budget_min', 0):,} - {user_budget.get('budget_max
 
 Provide a brief investment analysis with:
 1. Deal Score (0-100)
-2. Price vs Market (percentage)
+2. Price vs Market estimate
 3. Key highlights
 4. Investment recommendation (Buy/Hold/Avoid)
-Keep it under 100 words."""
+Keep it under 80 words."""
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://router.huggingface.co/google/flan-t5-base",
-                headers={"Authorization": f"Bearer {HF_TOKEN}"},
-                json={"inputs": prompt},
-                timeout=60.0
-            )
-            if response.status_code == 200:
-                result = response.json()
-                return {"ai_analysis": result, "powered_by": "huggingface"}
+        client = InferenceClient(
+            provider="auto",
+            api_key=HF_TOKEN
+        )
+        
+        response = client.text_generation(
+            prompt,
+            model="google/flan-t5-base",
+            max_new_tokens=150,
+            temperature=0.7,
+            return_full_text=False
+        )
+        
+        if response:
+            return {"ai_analysis": response, "powered_by": "huggingface"}
     except Exception as e:
         print(f"HF API error: {e}")
+        import traceback
+        traceback.print_exc()
     return None
 
 app = FastAPI(title="AI Real Estate Deals Finder API")
