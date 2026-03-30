@@ -53,35 +53,24 @@ Provide a brief investment analysis with:
 Keep it under 80 words."""
 
     try:
-        if HF_AVAILABLE and InferenceClient:
-            try:
-                client = InferenceClient(
-                    provider="auto",
-                    api_key=HF_TOKEN
-                )
-                response = client.text_generation(
-                    prompt,
-                    model="google/flan-t5-base",
-                    max_new_tokens=150,
-                    temperature=0.7,
-                    return_full_text=False
-                )
-                if response:
-                    return {"ai_analysis": response, "powered_by": "huggingface"}
-            except Exception as e:
-                print(f"InferenceClient error: {e}")
-        
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://api-inference.huggingface.co/models/google/flan-t5-base",
-                headers={"Authorization": f"Bearer {HF_TOKEN}"},
-                json={"inputs": prompt, "parameters": {"max_new_tokens": 150}},
+                "https://router.huggingface.co/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {HF_TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "microsoft/Phi-3-mini-4k-instruct",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 150
+                },
                 timeout=60.0
             )
             if response.status_code == 200:
                 result = response.json()
-                if isinstance(result, list) and len(result) > 0:
-                    text = result[0].get("generated_text", "")
+                if "choices" in result and len(result["choices"]) > 0:
+                    text = result["choices"][0]["message"]["content"]
                     return {"ai_analysis": text, "powered_by": "huggingface"}
             else:
                 print(f"HF API status: {response.status_code}, body: {response.text}")
@@ -410,30 +399,29 @@ async def test_hf():
     if not HF_TOKEN:
         return {"error": "HF token not configured", "setup_needed": True}
     
-    if not HF_AVAILABLE or InferenceClient is None:
-        return {"error": "HF package not installed"}
-    
     try:
-        client = InferenceClient(
-            provider="auto",
-            api_key=HF_TOKEN
-        )
-        response = client.text_generation(
-            "Say 'Hello' in 3 words",
-            model="google/flan-t5-base",
-            max_new_tokens=10
-        )
-        return {"success": True, "response": response}
-    except BaseException as e:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://router.huggingface.co/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {HF_TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "microsoft/Phi-3-mini-4k-instruct",
+                    "messages": [{"role": "user", "content": "Say 'Hello' in 3 words"}],
+                    "max_tokens": 20
+                },
+                timeout=60.0
+            )
+            if response.status_code == 200:
+                result = response.json()
+                return {"success": True, "response": result}
+            else:
+                return {"error": f"Status {response.status_code}", "body": response.text[:500]}
+    except Exception as e:
         import traceback
-        err_type = type(e).__name__
-        if err_type == "StopIteration":
-            return {
-                "error": "Inference Providers not available",
-                "setup_needed": True,
-                "hint": "Go to https://huggingface.co/settings/inference-providers and add billing info (free tier requires billing to be added)"
-            }
-        return {"error": f"{err_type}: {str(e)}", "trace": traceback.format_exc()}
+        return {"error": str(e), "trace": traceback.format_exc()}
 
 
 @app.get("/api/v1/payments/plans")
