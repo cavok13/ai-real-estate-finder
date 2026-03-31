@@ -220,11 +220,95 @@ Provide a brief investment analysis (under 60 words):
 
 @app.get("/")
 def root():
-    return {"message": "AI Real Estate Deals API", "version": "2.0.0", "docs": "/docs"}
+    return {"message": "AI Real Estate Deals API", "version": "2.0.0", "docs": "/docs"    }
+
+@app.get("/api/v1/markets/uae/best-deals")
+def get_best_deals_uae(market: str = "dubai"):
+    return {
+        "success": True,
+        "areas": [
+            {"name": "JVC", "nameAr": "قرية جميرا", "avgRentYield": 7.5, "avgPricePerSqFt": 1100, "medianPrice": 950000, "deal_score": 95, "riskLevel": "Low", "priceTrend": "rising"},
+            {"name": "International City", "nameAr": "المدينة العالمية", "avgRentYield": 9.0, "avgPricePerSqFt": 650, "medianPrice": 550000, "deal_score": 93, "riskLevel": "Medium", "priceTrend": "rising"},
+            {"name": "Dubai Silicon Oasis", "nameAr": "واحة دبي", "avgRentYield": 7.8, "avgPricePerSqFt": 850, "medianPrice": 780000, "deal_score": 93, "riskLevel": "Low", "priceTrend": "rising"},
+            {"name": "Discovery Gardens", "nameAr": "حدائق ديسكفري", "avgRentYield": 8.5, "avgPricePerSqFt": 750, "medianPrice": 650000, "deal_score": 91, "riskLevel": "Low", "priceTrend": "stable"},
+            {"name": "Dubai Land", "nameAr": "أرض دبي", "avgRentYield": 8.0, "avgPricePerSqFt": 700, "medianPrice": 900000, "deal_score": 90, "riskLevel": "Medium", "priceTrend": "rising"},
+        ]
+    }
+
+@app.get("/api/v1/markets/credits/balance")
+def get_credits_balance(current_user: dict = Depends(get_current_user)):
+    return {
+        "success": True,
+        "credits": current_user.get("credits", 0),
+        "plan": current_user.get("plan", "free")
+    }
+
+@app.post("/api/v1/markets/analyze-free")
+def analyze_free(url: str, current_user: dict = Depends(get_current_user)):
+    if not user_db.use_credit(current_user["email"]):
+        raise HTTPException(status_code=402, detail="Insufficient credits")
+    
+    price = 500000 + (hash(url) % 1000000)
+    deal_score = 70 + (hash(url) % 30)
+    
+    return {
+        "success": True,
+        "property": {
+            "url": url,
+            "price": price,
+            "currency": "AED"
+        },
+        "analysis": {
+            "deal_score": deal_score,
+            "roi_percent": 5 + (deal_score % 10),
+            "risk_level": "Low" if deal_score >= 75 else "Medium",
+            "avg_area_price_sqft": 1000 + (price % 2000),
+            "price_vs_market": "-5%",
+            "tags": ["High Yield", "Growing Area", "Good Transport"],
+            "recommendation": "Buy" if deal_score >= 75 else "Hold"
+        }
+    }
+
+@app.get("/api/v1/markets/uae/areas")
+def get_uae_areas(market: str = "dubai", sort_by: str = "yield"):
+    return {
+        "success": True,
+        "areas": [
+            {"name": "JVC", "avgRentYield": 7.5, "avgPricePerSqFt": 1100, "medianPrice": 950000, "deal_score": 95},
+            {"name": "International City", "avgRentYield": 9.0, "avgPricePerSqFt": 650, "medianPrice": 550000, "deal_score": 93},
+            {"name": "Dubai Silicon Oasis", "avgRentYield": 7.8, "avgPricePerSqFt": 850, "medianPrice": 780000, "deal_score": 93},
+            {"name": "Dubai Marina", "avgRentYield": 5.5, "avgPricePerSqFt": 1650, "medianPrice": 1650000, "deal_score": 88},
+            {"name": "Business Bay", "avgRentYield": 5.8, "avgPricePerSqFt": 1200, "medianPrice": 1200000, "deal_score": 85},
+        ]
+    }
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "groq_configured": bool(groq_client), "stripe_configured": bool(stripe)}
+    return {
+        "status": "healthy", 
+        "groq_configured": bool(groq_client), 
+        "stripe_configured": bool(stripe),
+        "properties_count": len(DEMO_PROPERTIES)
+    }
+
+@app.get("/api/v1/markets/uae/best-roi")
+def get_best_roi(market: str = "dubai", limit: int = 5):
+    areas = [
+        {"name": "International City", "avgRentYield": 9.0, "avgPricePerSqFt": 650, "medianPrice": 550000, "deal_score": 93},
+        {"name": "Discovery Gardens", "avgRentYield": 8.5, "avgPricePerSqFt": 750, "medianPrice": 650000, "deal_score": 91},
+        {"name": "Dubai Land", "avgRentYield": 8.0, "avgPricePerSqFt": 700, "medianPrice": 900000, "deal_score": 90},
+        {"name": "Dubai Silicon Oasis", "avgRentYield": 7.8, "avgPricePerSqFt": 850, "medianPrice": 780000, "deal_score": 93},
+        {"name": "JVC", "avgRentYield": 7.5, "avgPricePerSqFt": 1100, "medianPrice": 950000, "deal_score": 95},
+    ]
+    return {"success": True, "areas": areas[:limit]}
+
+@app.get("/api/v1/markets/plans")
+def get_plans_market():
+    return SUBSCRIPTION_PLANS
+
+@app.get("/api/v1/markets/health")
+def market_health():
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 class RegisterRequest(BaseModel):
     email: str
@@ -291,6 +375,34 @@ def get_me(current_user: dict = Depends(get_current_user)):
 def refresh_token(current_user: dict = Depends(get_current_user)):
     token = create_access_token({"sub": current_user["email"]})
     return {"access_token": token, "token_type": "bearer"}
+
+@app.get("/api/v1/properties/best-deals")
+def get_best_deals(
+    city: str = None,
+    country: str = None,
+    limit: int = 6,
+    page: int = 1
+):
+    filtered = DEMO_PROPERTIES.copy()
+    
+    if city:
+        filtered = [p for p in filtered if city.lower() in p["city"].lower()]
+    if country:
+        filtered = [p for p in filtered if country.lower() in p["country"].lower()]
+    
+    filtered = sorted(filtered, key=lambda x: x.get("price", 0))[:limit]
+    
+    for prop in filtered:
+        prop["deal_score"] = round(75 + (prop["price"] % 20), 1)
+        prop["roi"] = round(5 + (prop["price"] % 10), 1)
+    
+    start = (page - 1) * limit
+    return {
+        "items": filtered[start:start + limit],
+        "total": len(filtered),
+        "page": page,
+        "per_page": limit
+    }
 
 @app.get("/api/v1/properties")
 def get_properties(
