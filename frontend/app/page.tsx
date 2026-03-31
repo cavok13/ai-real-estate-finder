@@ -4,7 +4,6 @@
 import { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import PropertyCard from '@/components/PropertyCard';
-import { PropertyWithScore } from '@/lib/types';
 
 const TESTIMONIALS = [
   {
@@ -105,7 +104,7 @@ const DEMO_PROPERTIES = [
 ];
 
 export default function Home() {
-  const [bestDeals, setBestDeals] = useState<PropertyWithScore[]>([]);
+  const [bestDeals, setBestDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [analyzerData, setAnalyzerData] = useState({ price: '', area: '', city: '' });
   const [analyzerResult, setAnalyzerResult] = useState<any>(null);
