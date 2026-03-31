@@ -128,13 +128,13 @@ export default function Dashboard() {
 
   const fetchProperties = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/properties/best-deals?limit=6`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/properties?per_page=6`);
       if (res.ok) {
         const data = await res.json();
-        setProperties(data.map((p: any) => ({
+        setProperties(data.items?.map((p: any) => ({
           ...p,
           roi: 5 + Math.random() * 8
-        })));
+        })) || []);
       }
     } catch (e) {
       setProperties([
