@@ -435,6 +435,34 @@ def get_properties(
         "per_page": per_page
     }
 
+@app.get("/api/v1/properties/best")
+def get_best_deals(
+    city: str = None,
+    country: str = None,
+    limit: int = 6,
+    page: int = 1
+):
+    filtered = DEMO_PROPERTIES.copy()
+    
+    if city:
+        filtered = [p for p in filtered if city.lower() in p["city"].lower()]
+    if country:
+        filtered = [p for p in filtered if country.lower() in p["country"].lower()]
+    
+    filtered = sorted(filtered, key=lambda x: x.get("price", 0))[:limit]
+    
+    for prop in filtered:
+        prop["deal_score"] = round(75 + (prop["price"] % 20), 1)
+        prop["roi"] = round(5 + (prop["price"] % 10), 1)
+    
+    start = (page - 1) * limit
+    return {
+        "items": filtered[start:start + limit],
+        "total": len(filtered),
+        "page": page,
+        "per_page": limit
+    }
+
 @app.get("/api/v1/properties/{property_id}")
 def get_property(property_id: int):
     prop = next((p for p in DEMO_PROPERTIES if p["id"] == property_id), None)
