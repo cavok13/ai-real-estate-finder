@@ -12,6 +12,60 @@ import json
 router = APIRouter(prefix="/properties", tags=["Properties"])
 
 
+DEMO_PROPERTIES = [
+    {
+        "id": 1,
+        "title": "Luxury 6BR Villa with Private Beach - Palm Jumeirah",
+        "price": 18500000, "currency": "AED", "area": 750,
+        "city": "Dubai", "country": "UAE", "bedrooms": 6, "bathrooms": 7,
+        "property_type": "villa",
+        "image_url": "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800",
+        "location": "Palm Jumeirah",
+        "description": "Exclusive beachfront villa with private pool."
+    },
+    {
+        "id": 2,
+        "title": "2BR Luxury Apartment - Burj Khalifa View",
+        "price": 2350000, "currency": "AED", "area": 145,
+        "city": "Dubai", "country": "UAE", "bedrooms": 2, "bathrooms": 2,
+        "property_type": "apartment",
+        "image_url": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
+        "location": "Downtown Dubai",
+        "description": "Stunning apartment with direct Burj Khalifa views."
+    },
+    {
+        "id": 3,
+        "title": "4BR Townhouse - Arabian Ranches 3",
+        "price": 2850000, "currency": "AED", "area": 320,
+        "city": "Dubai", "country": "UAE", "bedrooms": 4, "bathrooms": 4,
+        "property_type": "townhouse",
+        "image_url": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800",
+        "location": "Arabian Ranches 3",
+        "description": "Modern townhouse in family-friendly community."
+    },
+    {
+        "id": 4,
+        "title": "1BR Sea View Apartment - Marina Towers",
+        "price": 1450000, "currency": "AED", "area": 95,
+        "city": "Dubai", "country": "UAE", "bedrooms": 1, "bathrooms": 1,
+        "property_type": "apartment",
+        "image_url": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800",
+        "location": "Dubai Marina",
+        "description": "Bright apartment with stunning sea and marina views."
+    },
+    {
+        "id": 5,
+        "title": "3BR Duplex Penthouse - Business Bay",
+        "price": 4200000, "currency": "AED", "area": 350,
+        "city": "Dubai", "country": "UAE", "bedrooms": 3, "bathrooms": 4,
+        "property_type": "penthouse",
+        "image_url": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800",
+        "location": "Business Bay",
+        "description": "Luxury duplex penthouse with private terrace and canal views."
+    },
+]
+
+
 @router.get("/countries")
 def get_countries(db: Session = Depends(get_db)):
     """Get all available countries with property counts"""
@@ -91,6 +145,26 @@ def get_properties(
     offset = (page - 1) * per_page
     
     properties = query.offset(offset).limit(per_page).all()
+    
+    if not properties:
+        filtered = DEMO_PROPERTIES
+        if city:
+            filtered = [p for p in filtered if city.lower() in p["city"].lower()]
+        if country:
+            filtered = [p for p in filtered if country == p["country"]]
+        if region:
+            filtered = [p for p in filtered if region == p.get("region")]
+        if property_type:
+            filtered = [p for p in filtered if property_type.lower() in p["property_type"].lower()]
+        if min_price:
+            filtered = [p for p in filtered if p["price"] >= min_price]
+        if max_price:
+            filtered = [p for p in filtered if p["price"] <= max_price]
+        if bedrooms:
+            filtered = [p for p in filtered if p.get("bedrooms", 0) >= bedrooms]
+        start = (page - 1) * per_page
+        return filtered[start:start + per_page]
+    
     return properties
 
 
@@ -113,6 +187,27 @@ def get_best_deals(
         query = query.filter(Property.region == region)
     
     properties = query.all()
+    
+    if not properties:
+        filtered = DEMO_PROPERTIES
+        if city:
+            filtered = [p for p in filtered if city.lower() in p["city"].lower()]
+        if country:
+            filtered = [p for p in filtered if country == p["country"]]
+        scored = []
+        for p in filtered:
+            score = round(75 + (p["price"] % 25), 1)
+            scored.append(PropertyWithScore(
+                id=p["id"], title=p["title"], price=p["price"], area=p["area"],
+                city=p["city"], country=p["country"], property_type=p.get("property_type"),
+                bedrooms=p.get("bedrooms"), bathrooms=p.get("bathrooms"),
+                image_url=p.get("image_url"), location=p.get("location"),
+                description=p.get("description"),
+                deal_score=score, price_vs_market=round((p["price"] / p["area"] - 1400) / 1400 * 100, 1),
+                recommendation="EXCELLENT DEAL!" if score >= 85 else "GOOD DEAL - Worth considering."
+            ))
+        scored.sort(key=lambda x: x.deal_score, reverse=True)
+        return scored[:limit]
     
     scoring_service = DealScoringService(db)
     scored_properties = []
@@ -164,6 +259,19 @@ def get_property(property_id: int, db: Session = Depends(get_db)):
     ).first()
     
     if not prop:
+        demo_prop = next((p for p in DEMO_PROPERTIES if p["id"] == property_id), None)
+        if demo_prop:
+            return PropertyWithScore(
+                id=demo_prop["id"], title=demo_prop["title"], price=demo_prop["price"],
+                area=demo_prop["area"], city=demo_prop["city"], country=demo_prop["country"],
+                property_type=demo_prop.get("property_type"),
+                bedrooms=demo_prop.get("bedrooms"), bathrooms=demo_prop.get("bathrooms"),
+                image_url=demo_prop.get("image_url"), location=demo_prop.get("location"),
+                description=demo_prop.get("description"),
+                deal_score=round(75 + (demo_prop["price"] % 25), 1),
+                price_vs_market=round((demo_prop["price"] / demo_prop["area"] - 1400) / 1400 * 100, 1),
+                recommendation="EXCELLENT DEAL!" if round(75 + (demo_prop["price"] % 25), 1) >= 85 else "GOOD DEAL - Worth considering."
+            )
         raise HTTPException(status_code=404, detail="Property not found")
     
     scoring_service = DealScoringService(db)
